@@ -13,6 +13,8 @@ All units are in I'm very sorry to say imperial
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from stl import mesh
 
 
 
@@ -74,12 +76,14 @@ def aerofoil_four_digit_NACA(m,p,yt):
     x_vals = np.concatenate((x_upper, x_lower), axis=0)
     y_vals = np.concatenate((y_upper, y_lower), axis=0)
 
-    coords = list(zip(x_vals.T,y_vals.T))
-    return coords
+    return x_vals,y_vals
 
 
 #Defining Variables
-overall_length = 12;
+blade_length = 12;
+m = 0.02
+p = 0.4
+yt = 0.12
 
 #Definging Input Functions
 def chord_length(z):
@@ -92,12 +96,46 @@ def aerofoil_along_blade(z):
     """
     Takes in position along the turbine and returns a 2D slice of an aerofoil
     """
-    aerofoil_slice_temp = aerofoil_four_digit_NACA(0.02, 0.4, .12);
-    chord_len = chord_length(1);
-    aerofoil_slice = [(elem1*chord_len,elem2) for elem1, elem2 in aerofoil_slice_temp]
-    return aerofoil_slice
+    x_vals,y_vals = aerofoil_four_digit_NACA(m, p, yt);
+    chord_len = chord_length(z);
+    z_vals = np.ones(len(x_vals))*z
+    return x_vals*chord_len,y_vals,z_vals
+
 #Plotting the coords
-coords = aerofoil_along_blade(1);
-plot_list = [(elem1,elem2) for elem1, elem2 in coords]
-plt.scatter(*zip(*plot_list))
+z_space = np.linspace(0,blade_length,100)
+#iterate through length of blade
+x_set = []
+y_set = []
+z_set = []
+
+for ind,z_sp in enumerate(z_space):
+    x,y,z = aerofoil_along_blade(z_sp);
+    length_vals = len(x);
+
+    #appending to overall list
+    x_set[ind*length_vals-length_vals:length_vals*ind-1] = x;
+    y_set[ind*length_vals-length_vals:length_vals*ind-1] = y;
+    z_set[ind*length_vals-length_vals:length_vals*ind-1] = z;
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+ax.scatter(np.array(x_set), np.array(y_set), np.array(z_set))
+
+ax.set_xlabel('X Label')
+ax.set_ylabel('Y Label')
+ax.set_zlabel('Z Label')
+
 plt.show()
+
+#Saving as a mesh
+num_triangles=len(x_set)
+data = np.zeros(num_triangles, dtype=mesh.Mesh.dtype)
+for i in range(num_triangles):
+    full_set = np.zeros((num_triangles,3))
+    for i in range(num_triangles):
+        full_set[i] = [x_set[i],y_set[i],z_set[i]]
+    print(full_set)
+    data["vectors"][i] = full_set
+m=mesh.Mesh(data)
+m.save('filename.stl')
