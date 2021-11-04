@@ -15,10 +15,74 @@ import math
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from stl import mesh
-
+import open3d as o3d
 
 
 #General Functions
+def find_normal_to_plane(A,B,C):
+    """
+    Finds the normal vector to three point plane
+    """
+    vec1 = [A[0]-B[0],A[1]-B[1],A[2]-B[2]]
+    vec2 = [C[0]-B[0],C[1]-B[1],C[2]-B[2]]
+
+    vec3 = np.cross(vec1,vec2)
+
+    return vec3
+def create_mesh_of_aerofoils(X,Y,Z):
+    """
+    creates a mesh from all 3D points itterating arround in a circle essentially
+    """
+    #looping conditions
+    num_points_per_slice = next((i for i, x in enumerate(Z) if x), Z[0])
+    print(num_points_per_slice)
+    #num_points = num_points_per_slice+1;#one point so end attaches to start
+    #spliting lists into numpy arrays
+    x = np.reshape(np.array(X),(-1,num_points_per_slice))
+    y = np.reshape(np.array(Y),(-1,num_points_per_slice))
+    z = np.reshape(np.array(Z),(-1,num_points_per_slice))
+
+    #Verticies
+    vertices = np.array((X,Y,Z)).T
+
+    #creating faces
+    num_faces = (num_points_per_slice-1)*(len(x)-1)+1+num_points_per_slice*2-2
+    faces = np.zeros((num_faces*2,3));
+    counter = 0;
+    for i in range(len(x)-1):
+        for j in range(num_points_per_slice-1):
+            bottom_ind = num_points_per_slice*i+j
+            #top triangle
+            faces[counter] = [bottom_ind,bottom_ind+1,(bottom_ind+1+num_points_per_slice)]
+
+            counter+=1;
+            #bottom triangle
+            faces[counter] = [bottom_ind, (bottom_ind+1+num_points_per_slice), (bottom_ind+num_points_per_slice)]
+            counter+=1;
+
+
+    #Bottom Surface
+    x_bot = x[0].reshape((-1,int(num_points_per_slice/2)))
+    y_bot = y[0].reshape((-1,int(num_points_per_slice/2)))
+    z_bot = z[0].reshape((-1,int(num_points_per_slice/2)))
+    xc_bot = (x_bot[0]+x_bot[1])/2
+    yc_bot = (y_bot[0]+y_bot[1])/2
+
+
+    print(xc_bot)
+    faces = faces.astype(int)
+
+    # Create the mesh
+    blade = mesh.Mesh(np.zeros(faces.shape[0], dtype=mesh.Mesh.dtype))
+    for i, f in enumerate(faces):
+        for j in range(3):
+            blade.vectors[i][j] = vertices[f[j],:]
+
+    # Write the mesh to file "cube.stl"
+    blade.save('blade.stl')
+
+
+
 def aerofoil_four_digit_NACA(m,p,yt):
     """
     Returns a aerofoil using the 4 digit NACA cambered aerofoil
@@ -78,44 +142,72 @@ def aerofoil_four_digit_NACA(m,p,yt):
 
     return x_vals,y_vals
 
+def twist(x,y,theta,twist_axis):
+    """
+    twists all points around the axis
+    """
+    a = twist_axis[0]
+    b = twist_axis[1]
+    x_new = (np.array(x)-a)*math.cos(theta)-(np.array(y)-b)*math.sin(theta)-a;
+    y_new = (np.array(y)-b)*math.cos(theta)+(np.array(x)-a)*math.sin(theta)-b;
+    return x_new, y_new;
 
 #Defining Variables
-blade_length = 12;
+blade_length = 12*25.4;
 m = 0.02
 p = 0.4
 yt = 0.12
+twist_axis = (0.4,0)
+twist_angle_deg = 0;
+twist_angle_rad = twist_angle_deg*math.pi/180;
+num_sec = 2;
 
 #Definging Input Functions
 def chord_length(z):
     """
     Takes an input of position returns the length at that point
     """
-    return 5;
+    return (10*25.4)#-9*z/12);
+def twist_along_length(z):
+    """
+    Define how much twist per increase in z occurs
+    """
+    return (twist_angle_rad/blade_length)*z
 
 def aerofoil_along_blade(z):
     """
     Takes in position along the turbine and returns a 2D slice of an aerofoil
     """
+    #Get base aerofoil
     x_vals,y_vals = aerofoil_four_digit_NACA(m, p, yt);
+    #Get scaling Factor
     chord_len = chord_length(z);
+    #Twist around an axis and scale
+    x_vals,y_vals = twist(x_vals*chord_len,y_vals*chord_len,twist_along_length(z),twist_axis)
+    #Add the z coordinates
     z_vals = np.ones(len(x_vals))*z
-    return x_vals*chord_len,y_vals,z_vals
+    return x_vals,y_vals,z_vals
 
-#Plotting the coords
-z_space = np.linspace(0,blade_length,100)
+#Creating the aerofoil
+z_space = np.linspace(0,blade_length,num_sec)
+
 #iterate through length of blade
 x_set = []
 y_set = []
 z_set = []
 
 for ind,z_sp in enumerate(z_space):
+
     x,y,z = aerofoil_along_blade(z_sp);
     length_vals = len(x);
-
     #appending to overall list
-    x_set[ind*length_vals-length_vals:length_vals*ind-1] = x;
-    y_set[ind*length_vals-length_vals:length_vals*ind-1] = y;
-    z_set[ind*length_vals-length_vals:length_vals*ind-1] = z;
+
+    x_set[ind*length_vals:length_vals*ind+length_vals-1] = x;
+    y_set[ind*length_vals:length_vals*ind+length_vals-1] = y;
+    z_set[ind*length_vals:length_vals*ind+length_vals-1] = z;
+
+
+create_mesh_of_aerofoils(x_set,y_set,z_set)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -127,15 +219,3 @@ ax.set_ylabel('Y Label')
 ax.set_zlabel('Z Label')
 
 plt.show()
-
-#Saving as a mesh
-num_triangles=len(x_set)
-data = np.zeros(num_triangles, dtype=mesh.Mesh.dtype)
-for i in range(num_triangles):
-    full_set = np.zeros((num_triangles,3))
-    for i in range(num_triangles):
-        full_set[i] = [x_set[i],y_set[i],z_set[i]]
-    print(full_set)
-    data["vectors"][i] = full_set
-m=mesh.Mesh(data)
-m.save('filename.stl')
