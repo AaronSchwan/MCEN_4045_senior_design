@@ -65,11 +65,18 @@ def create_mesh_of_aerofoils(X,Y,Z):
     x_bot = x[0].reshape((-1,int(num_points_per_slice/2)))
     y_bot = y[0].reshape((-1,int(num_points_per_slice/2)))
     z_bot = z[0].reshape((-1,int(num_points_per_slice/2)))
+
     xc_bot = (x_bot[0]+x_bot[1])/2
     yc_bot = (y_bot[0]+y_bot[1])/2
 
+    vertices_bot = []
 
-    print(xc_bot)
+    #Tiling bottom and top surfaces###################
+    #############################################
+
+
+
+
     faces = faces.astype(int)
 
     # Create the mesh
