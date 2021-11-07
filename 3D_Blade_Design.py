@@ -15,7 +15,6 @@ import math
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from stl import mesh
-import open3d as o3d
 
 
 #General Functions
@@ -42,41 +41,226 @@ def create_mesh_of_aerofoils(X,Y,Z):
     y = np.reshape(np.array(Y),(-1,num_points_per_slice))
     z = np.reshape(np.array(Z),(-1,num_points_per_slice))
 
-    #Verticies
-    vertices = np.array((X,Y,Z)).T
-
-    #creating faces
-    num_faces = (num_points_per_slice-1)*(len(x)-1)+1+num_points_per_slice*2-2
-    faces = np.zeros((num_faces*2,3));
-    counter = 0;
-    for i in range(len(x)-1):
-        for j in range(num_points_per_slice-1):
-            bottom_ind = num_points_per_slice*i+j
-            #top triangle
-            faces[counter] = [bottom_ind,bottom_ind+1,(bottom_ind+1+num_points_per_slice)]
-
-            counter+=1;
-            #bottom triangle
-            faces[counter] = [bottom_ind, (bottom_ind+1+num_points_per_slice), (bottom_ind+num_points_per_slice)]
-            counter+=1;
+    x_new = np.zeros((x.shape[0],x.shape[1]+1))
+    y_new = np.zeros((y.shape[0],y.shape[1]+1))
+    z_new = np.zeros((z.shape[0],z.shape[1]+1))
+    for ind,x_num in enumerate(x):
+        x_new[ind][0:-1] = x_num
+        x_new[ind][-1] = x_num[0]
+    for ind,y_num in enumerate(y):
+        y_new[ind][0:-1] = y_num
+        y_new[ind][-1] = y_num[0]
+    for ind,z_num in enumerate(z):
+        z_new[ind][0:-1] = z_num
+        z_new[ind][-1] = z_num[0]
 
 
-    #Bottom Surface
-    x_bot = x[0].reshape((-1,int(num_points_per_slice/2)))
-    y_bot = y[0].reshape((-1,int(num_points_per_slice/2)))
-    z_bot = z[0].reshape((-1,int(num_points_per_slice/2)))
+    #Defining Lists to add to
+    m = len(x_new[0])*len(x_new)-2
+    tb_vert = len(x_new[0])*8*2
+    tb_faces = 4*len(x_new[0])*2
+    faces = np.zeros((m+tb_faces,3))
+    vertices = np.zeros((m*2+tb_vert,3))
 
-    xc_bot = (x_bot[0]+x_bot[1])/2
-    yc_bot = (y_bot[0]+y_bot[1])/2
+    counter_vert = 0;
+    counter_face = 0;
 
-    vertices_bot = []
+    #itterating and appending to lists
+    for i in range(len(x_new)-1):
+        #itterate through levels
+        for j in range(len(x_new[0])-1):
+            #Bottom left corner
+            bl_x = x_new[i][j]
+            bl_y= y_new[i][j]
+            bl_z = z_new[i][j]
 
-    #Tiling bottom and top surfaces###################
-    #############################################
+            #Bottom right corner
+            br_x = x_new[i][j+1]
+            br_y = y_new[i][j+1]
+            br_z = z_new[i][j+1]
 
+            #Top left corner
+            tl_x = x_new[i+1][j]
+            tl_y= y_new[i+1][j]
+            tl_z = z_new[i+1][j]
 
+            #Top right corner
+            tr_x = x_new[i+1][j+1]
+            tr_y = y_new[i+1][j+1]
+            tr_z = z_new[i+1][j+1]
 
+            #Vertices
+            vertices[counter_vert] = [bl_x,bl_y,bl_z]
+            counter_vert+=1;
+            vertices[counter_vert] = [br_x,br_y,br_z]
+            counter_vert+=1;
+            vertices[counter_vert] = [tl_x,tl_y,tl_z]
+            counter_vert+=1;
+            vertices[counter_vert] = [tr_x,tr_y,tr_z]
+            counter_vert+=1;
 
+            #Faces
+            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            counter_face+=1
+            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            counter_face+=1
+    print(counter_face)
+    print(counter_vert)
+    #Meshing for top surface
+    mid = int(len(x_new[0])/2)
+    zt = z_new[-1][-1]
+    xc = np.flip(np.array(x_new[-1][mid:]))
+    yc = np.flip(np.array(y_new[-1][mid:]))
+
+    #Lower half
+    for i in range(len(xc)-1):
+
+            #Bottom left corner
+            bl_x = x_new[-1][mid+i]
+            bl_y= y_new[-1][mid+i]
+
+            #Bottom right corner
+            br_x = x_new[-1][mid+i+1]
+            br_y = y_new[-1][mid+i+1]
+
+            #Top left corner
+            tl_x = xc[i]
+            tl_y= yc[i]
+
+            #Top right corner
+            tr_x = xc[i+1]
+            tr_y = yc[i+1]
+
+            #Vertices
+            vertices[counter_vert] = [bl_x,bl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [br_x,br_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tl_x,tl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tr_x,tr_y,zt]
+            counter_vert+=1;
+
+            #Faces
+            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            counter_face+=1
+            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            counter_face+=1
+    #Upper half
+    for i in range(len(xc)-1):
+
+            #Bottom left corner
+            bl_x = x_new[-1][i]
+            bl_y= y_new[-1][i]
+
+            #Bottom right corner
+            br_x = x_new[-1][i+1]
+            br_y = y_new[-1][i+1]
+
+            #Top left corner
+            tl_x = xc[i]
+            tl_y= yc[i]
+
+            #Top right corner
+            tr_x = xc[i+1]
+            tr_y = yc[i+1]
+
+            #Vertices
+            vertices[counter_vert] = [bl_x,bl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [br_x,br_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tl_x,tl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tr_x,tr_y,zt]
+            counter_vert+=1;
+
+            #Faces
+            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            counter_face+=1
+            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            counter_face+=1
+
+    #Meshing for Bottom surface
+    mid = int(len(x_new[0])/2)
+    zt = z_new[0][-1]
+    xc = np.flip(np.array(x_new[0][mid:]))
+    yc = np.flip(np.array(y_new[0][mid:]))
+
+    #Lower half
+    for i in range(len(xc)-1):
+
+            #Bottom left corner
+            bl_x = x_new[0][mid+i]
+            bl_y= y_new[0][mid+i]
+
+            #Bottom right corner
+            br_x = x_new[0][mid+i+1]
+            br_y = y_new[0][mid+i+1]
+
+            #Top left corner
+            tl_x = xc[i]
+            tl_y= yc[i]
+
+            #Top right corner
+            tr_x = xc[i+1]
+            tr_y = yc[i+1]
+
+            #Vertices
+            vertices[counter_vert] = [bl_x,bl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [br_x,br_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tl_x,tl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tr_x,tr_y,zt]
+            counter_vert+=1;
+
+            #Faces
+            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            counter_face+=1
+            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            counter_face+=1
+    #Upper half
+    for i in range(len(xc)-1):
+
+            #Bottom left corner
+            bl_x = x_new[0][i]
+            bl_y= y_new[0][i]
+
+            #Bottom right corner
+            br_x = x_new[0][i+1]
+            br_y = y_new[0][i+1]
+
+            #Top left corner
+            tl_x = xc[i]
+            tl_y= yc[i]
+
+            #Top right corner
+            tr_x = xc[i+1]
+            tr_y = yc[i+1]
+
+            #Vertices
+            vertices[counter_vert] = [bl_x,bl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [br_x,br_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tl_x,tl_y,zt]
+            counter_vert+=1;
+            vertices[counter_vert] = [tr_x,tr_y,zt]
+            counter_vert+=1;
+
+            #Faces
+            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            counter_face+=1
+            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            counter_face+=1
+
+    #converting to numpy arrays
+    faces = np.array(faces)
+    vertices = np.array(vertices)
+
+    #converting indices to proper integer form
     faces = faces.astype(int)
 
     # Create the mesh
@@ -143,9 +327,10 @@ def aerofoil_four_digit_NACA(m,p,yt):
         y_lower[i] = yc-yti*math.cos(theta)
 
 
+
     #Making an overall coordinate list
-    x_vals = np.concatenate((x_upper, x_lower), axis=0)
-    y_vals = np.concatenate((y_upper, y_lower), axis=0)
+    x_vals = np.concatenate((x_upper, np.flip(x_lower)), axis=0)
+    y_vals = np.concatenate((y_upper, np.flip(y_lower)), axis=0)
 
     return x_vals,y_vals
 
@@ -160,21 +345,21 @@ def twist(x,y,theta,twist_axis):
     return x_new, y_new;
 
 #Defining Variables
-blade_length = 12*25.4;
+blade_length = 8*25.4;
 m = 0.02
-p = 0.4
-yt = 0.12
+p =  0.4
+yt =.12
 twist_axis = (0.4,0)
-twist_angle_deg = 0;
+twist_angle_deg = 40;
 twist_angle_rad = twist_angle_deg*math.pi/180;
-num_sec = 2;
+num_sec = 6;
 
 #Definging Input Functions
 def chord_length(z):
     """
     Takes an input of position returns the length at that point
     """
-    return (10*25.4)#-9*z/12);
+    return 1.5*25.4-z/8;
 def twist_along_length(z):
     """
     Define how much twist per increase in z occurs
@@ -216,13 +401,6 @@ for ind,z_sp in enumerate(z_space):
 
 create_mesh_of_aerofoils(x_set,y_set,z_set)
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-ax.scatter(np.array(x_set), np.array(y_set), np.array(z_set))
-
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
-
-plt.show()
+plt.scatter(x_set[0:99],y_set[0:99])
+plt.scatter(x_set[100:199],y_set[100:199])
+#plt.show()
