@@ -3,7 +3,7 @@ The goal of this file is to take input aerofoil specifications and to create a
 3D model of an STL file. This may be done from them specifying the twist,
 cord lengths, overall length, etc.
 
-All units are in I'm very sorry to say imperial
+All units are in millimeters
 ################################################################################
 #Written by Aaron Schwan
 #schwanaaron@gmail.com
@@ -57,8 +57,8 @@ def create_mesh_of_aerofoils(X,Y,Z):
 
     #Defining Lists to add to
     m = len(x_new[0])*len(x_new)-2
-    tb_vert = len(x_new[0])*8*2
-    tb_faces = 4*len(x_new[0])*2
+    tb_vert = len(x_new[0])*8*2+50000
+    tb_faces = 4*len(x_new[0])*2+50000
     faces = np.zeros((m+tb_faces,3))
     vertices = np.zeros((m*2+tb_vert,3))
 
@@ -345,26 +345,59 @@ def twist(x,y,theta,twist_axis):
     return x_new, y_new;
 
 #Defining Variables
-blade_length = 8*25.4;
-m = 0.02
+blade_length = 8.36*25.4;
+m = 0.04
 p =  0.4
 yt =.12
-twist_axis = (0.4,0)
-twist_angle_deg = 40;
-twist_angle_rad = twist_angle_deg*math.pi/180;
-num_sec = 6;
 
-#Definging Input Functions
+num_sec = 50;
+
+#Defining Input Functions
 def chord_length(z):
     """
     Takes an input of position returns the length at that point
     """
-    return 1.5*25.4-z/8;
+
+    r_R = [0.098722838423558612,0.19817033210715068,0.29844191565972439,0.39836507820989592,0.59897204696761308,0.69946480365841157,0.79885062833520259,0.89879165179368381,0.99891794885328977,1.1]
+    chord_ratios = [0.96969696969697128, 0.48619528619528746, 0.32525252525252646, 0.24410774410774533,0.19595959595959708, 0.16397306397306505,  0.14107744107744202, 0.12390572390572477, .11043771043771135, 0.098989898989899863,0.098989898989899863]
+
+
+    rat = z/blade_length
+
+    minimum = 5;
+    for ind,r in enumerate(r_R):
+
+        if abs(r-rat) < minimum:
+            minimum = rat-r
+            index = ind
+
+
+    chord = (abs(chord_ratios[index+1]-chord_ratios[index])*rat/abs(r_R[index+1]-r_R[index])+chord_ratios[index])*blade_length;
+    print(chord)
+    return chord
+
+
 def twist_along_length(z):
     """
     Define how much twist per increase in z occurs
     """
-    return (twist_angle_rad/blade_length)*z
+    r_R = [0.09871610607040904,0.1985838351598272,0.2985991990282104,0.3981223104824296,0.49792463381680396,0.5986578601233136,0.6975508398381056,0.79908287628438,0.8991791577227337,0.9988901736665801,1.1]
+    twist = [48.72241395230653, 30.282796424367795, 18.499276117124978,	11.172694861553616,	5.876310054487089,1.7210778206851352,-1.9414191081010497,-5.003537441594889,-6.371646183948352,-6.466317814079019,-6.466317814079019]
+
+    rat = z/blade_length
+
+
+    minimum = 1;
+    for ind,r in enumerate(r_R):
+
+        if abs(r-rat) < minimum:
+            minimum = rat-r
+            index = ind
+
+
+    theta = ((twist[index]-twist[index+1])/(r_R[index]-r_R[index+1])*rat+twist[index+1])*math.pi/180;
+
+    return theta
 
 def aerofoil_along_blade(z):
     """
@@ -382,6 +415,7 @@ def aerofoil_along_blade(z):
 
 #Creating the aerofoil
 z_space = np.linspace(0,blade_length,num_sec)
+twist_axis = (0.3*chord_length(0),0)
 
 #iterate through length of blade
 x_set = []
