@@ -33,8 +33,8 @@ def create_mesh_of_aerofoils(X,Y,Z):
     creates a mesh from all 3D points itterating arround in a circle essentially
     """
     #looping conditions
-    num_points_per_slice = next((i for i, x in enumerate(Z) if x), Z[0])
-    print(num_points_per_slice)
+    num_points_per_slice = 200#next((i for i, x in enumerate(Z) if x), Z[0])
+
     #num_points = num_points_per_slice+1;#one point so end attaches to start
     #spliting lists into numpy arrays
     x = np.reshape(np.array(X),(-1,num_points_per_slice))
@@ -57,8 +57,8 @@ def create_mesh_of_aerofoils(X,Y,Z):
 
     #Defining Lists to add to
     m = len(x_new[0])*len(x_new)-2
-    tb_vert = len(x_new[0])*8*2
-    tb_faces = 4*len(x_new[0])*2
+    tb_vert = len(x_new[0])*8*2+50000
+    tb_faces = 4*len(x_new[0])*2+50000
     faces = np.zeros((m+tb_faces,3))
     vertices = np.zeros((m*2+tb_vert,3))
 
@@ -100,52 +100,18 @@ def create_mesh_of_aerofoils(X,Y,Z):
             counter_vert+=1;
 
             #Faces
-            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            faces[counter_face] = [counter_vert-2,counter_vert-3,counter_vert-4]
             counter_face+=1
-            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            faces[counter_face] = [counter_vert-2,counter_vert-1,counter_vert-3]
             counter_face+=1
-    print(counter_face)
-    print(counter_vert)
+
     #Meshing for top surface
     mid = int(len(x_new[0])/2)
     zt = z_new[-1][-1]
     xc = np.flip(np.array(x_new[-1][mid:]))
     yc = np.flip(np.array(y_new[-1][mid:]))
 
-    #Lower half
-    for i in range(len(xc)-1):
 
-            #Bottom left corner
-            bl_x = x_new[-1][mid+i]
-            bl_y= y_new[-1][mid+i]
-
-            #Bottom right corner
-            br_x = x_new[-1][mid+i+1]
-            br_y = y_new[-1][mid+i+1]
-
-            #Top left corner
-            tl_x = xc[i]
-            tl_y= yc[i]
-
-            #Top right corner
-            tr_x = xc[i+1]
-            tr_y = yc[i+1]
-
-            #Vertices
-            vertices[counter_vert] = [bl_x,bl_y,zt]
-            counter_vert+=1;
-            vertices[counter_vert] = [br_x,br_y,zt]
-            counter_vert+=1;
-            vertices[counter_vert] = [tl_x,tl_y,zt]
-            counter_vert+=1;
-            vertices[counter_vert] = [tr_x,tr_y,zt]
-            counter_vert+=1;
-
-            #Faces
-            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
-            counter_face+=1
-            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
-            counter_face+=1
     #Upper half
     for i in range(len(xc)-1):
 
@@ -176,9 +142,9 @@ def create_mesh_of_aerofoils(X,Y,Z):
             counter_vert+=1;
 
             #Faces
-            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
+            faces[counter_face] = [counter_vert-2,counter_vert-3,counter_vert-4]
             counter_face+=1
-            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
+            faces[counter_face] = [counter_vert-2,counter_vert-1,counter_vert-3]
             counter_face+=1
 
     #Meshing for Bottom surface
@@ -187,40 +153,6 @@ def create_mesh_of_aerofoils(X,Y,Z):
     xc = np.flip(np.array(x_new[0][mid:]))
     yc = np.flip(np.array(y_new[0][mid:]))
 
-    #Lower half
-    for i in range(len(xc)-1):
-
-            #Bottom left corner
-            bl_x = x_new[0][mid+i]
-            bl_y= y_new[0][mid+i]
-
-            #Bottom right corner
-            br_x = x_new[0][mid+i+1]
-            br_y = y_new[0][mid+i+1]
-
-            #Top left corner
-            tl_x = xc[i]
-            tl_y= yc[i]
-
-            #Top right corner
-            tr_x = xc[i+1]
-            tr_y = yc[i+1]
-
-            #Vertices
-            vertices[counter_vert] = [bl_x,bl_y,zt]
-            counter_vert+=1;
-            vertices[counter_vert] = [br_x,br_y,zt]
-            counter_vert+=1;
-            vertices[counter_vert] = [tl_x,tl_y,zt]
-            counter_vert+=1;
-            vertices[counter_vert] = [tr_x,tr_y,zt]
-            counter_vert+=1;
-
-            #Faces
-            faces[counter_face] = [counter_vert-4,counter_vert-3,counter_vert-2]
-            counter_face+=1
-            faces[counter_face] = [counter_vert-3,counter_vert-1,counter_vert-2]
-            counter_face+=1
     #Upper half
     for i in range(len(xc)-1):
 
@@ -346,24 +278,51 @@ def twist(x,y,theta,twist_axis):
 
 #Defining Variables
 blade_length = 8*25.4;
-m = 0.02
+blade_start = 0.0125*1000
+
+m = 0.04
 p =  0.4
 yt =.12
-twist_axis = (0.4,0)
 twist_angle_deg = 40;
 twist_angle_rad = twist_angle_deg*math.pi/180;
-num_sec = 6;
+num_sec = 25;
+RPM = 2000
+air_speed = 10
+alpha = 14
 
 #Definging Input Functions
 def chord_length(z):
     """
     Takes an input of position returns the length at that point
     """
-    return 1.5*25.4-z/8;
+    Re = 50000
+    rho = 1.225
+    visc = 1.789*10**(-5)
+    tan_vel = z*RPM*2*math.pi/60/1000
+    mag_vel = (air_speed**2+tan_vel**2)**(1/2)
+
+    #c = Re*visc/(mag_vel*rho)*1000
+    TSR = (z/1000*RPM*2*math.pi/60)/air_speed
+    phi = 2*math.atan(1/(TSR))/3
+    c = 8*math.pi*z*(1-math.cos(phi))/(3*1.4)
+
+    return c;
 def twist_along_length(z):
     """
     Define how much twist per increase in z occurs
     """
+    Re = 50000
+    rho = 1.225
+    visc = 1.789*10**(-5)
+    tan_vel = z*RPM*2*math.pi/60/1000
+    mag_vel = (air_speed**2+tan_vel**2)**(1/2)
+    a = alpha*math.pi/180
+
+    #theta = math.atan(tan_vel/air_speed)+a
+    TSR = (z/1000*RPM*2*math.pi/60)/air_speed
+    phi = 2*math.atan(1/(TSR))/3
+    theta = phi*180/math.pi - alpha
+
     return (twist_angle_rad/blade_length)*z
 
 def aerofoil_along_blade(z):
@@ -381,12 +340,15 @@ def aerofoil_along_blade(z):
     return x_vals,y_vals,z_vals
 
 #Creating the aerofoil
-z_space = np.linspace(0,blade_length,num_sec)
+z_space = np.linspace(blade_start,blade_length,num_sec)
 
 #iterate through length of blade
 x_set = []
 y_set = []
 z_set = []
+c = chord_length(z_space[0])
+twist_axis = (c/4,0)
+print(twist_axis)
 
 for ind,z_sp in enumerate(z_space):
 
