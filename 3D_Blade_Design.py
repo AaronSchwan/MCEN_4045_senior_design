@@ -2,7 +2,6 @@
 The goal of this file is to take input aerofoil specifications and to create a
 3D model of an STL file. This may be done from them specifying the twist,
 cord lengths, overall length, etc.
-
 All units are in I'm very sorry to say imperial
 ################################################################################
 #Written by Aaron Schwan
@@ -209,7 +208,6 @@ def create_mesh_of_aerofoils(X,Y,Z):
 def aerofoil_four_digit_NACA(m,p,yt):
     """
     Returns a aerofoil using the 4 digit NACA cambered aerofoil
-
     m = maximum camber 100*m = first NACA number
     p = location of maximum camber 10*p = second digit in the NACA number
     yt = thickness 100*yt = third and fourth digits in the NACA number
@@ -285,7 +283,7 @@ p =  0.4
 yt =.12
 twist_angle_deg = 40;
 twist_angle_rad = twist_angle_deg*math.pi/180;
-num_sec = 25;
+num_sec = 100;
 RPM = 2000
 air_speed = 10
 alpha = 14
@@ -321,9 +319,9 @@ def twist_along_length(z):
     #theta = math.atan(tan_vel/air_speed)+a
     TSR = (z/1000*RPM*2*math.pi/60)/air_speed
     phi = 2*math.atan(1/(TSR))/3
-    theta = phi*180/math.pi - alpha
+    theta = phi - alpha*math.pi/180
 
-    return (twist_angle_rad/blade_length)*z
+    return theta
 
 def aerofoil_along_blade(z):
     """
@@ -349,20 +347,33 @@ z_set = []
 c = chord_length(z_space[0])
 twist_axis = (c/4,0)
 print(twist_axis)
+blade_twist_list = []
+blade_chord_list = []
+print(z_space)
 
 for ind,z_sp in enumerate(z_space):
 
-    x,y,z = aerofoil_along_blade(z_sp);
-    length_vals = len(x);
+    #x,y,z = aerofoil_along_blade(z_sp);
+    #length_vals = len(x);
     #appending to overall list
-
+    blade_twist_list.append(twist_along_length(z_sp))
+    blade_chord_list.append(chord_length(z_sp))
+    """
     x_set[ind*length_vals:length_vals*ind+length_vals-1] = x;
     y_set[ind*length_vals:length_vals*ind+length_vals-1] = y;
     z_set[ind*length_vals:length_vals*ind+length_vals-1] = z;
+    """
 
+#create_mesh_of_aerofoils(x_set,y_set,z_set)
+print(blade_twist_list)
+print(blade_chord_list)
+x_vals,y_vals = aerofoil_four_digit_NACA(0.04, 0.4, 0.12);
 
-create_mesh_of_aerofoils(x_set,y_set,z_set)
-
-plt.scatter(x_set[0:99],y_set[0:99])
-plt.scatter(x_set[100:199],y_set[100:199])
-#plt.show()
+#plt.plot(x_vals,y_vals,linewidth=7.0)
+#plt.plot([-0.1,1],[0,0],c='black',linewidth=3.0)
+#plt.plot([-0.1,1],[0.1,0],c='black',linewidth=3.0)
+#plt.plot(z_space,blade_twist_list,c='black',linewidth=3.0)
+plt.plot(z_space,blade_chord_list,c='black',linewidth=3.0)
+plt.xlabel("Radius (mm)")
+plt.ylabel("Chord Diameter (mm)")
+plt.show()
